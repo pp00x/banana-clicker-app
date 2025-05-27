@@ -17,6 +17,9 @@ const io = new Server(server, {
   },
 });
 
+// In-memory store for active users: Map<userId, Set<socketId>>
+const activeUsers = new Map();
+
 io.use(socketAuthMiddleware);
 
 connectDB();
@@ -33,15 +36,48 @@ app.get('/', (req, res) => {
 });
 
 io.on('connection', (socket) => {
-  // At this point, if connection is successful, socket.user should be populated
-  console.log(
-    `New client connected: ${socket.id}, User: ${socket.user ? socket.user.username : 'Guest/Unauthorized'}`
-  );
+  if (socket.user) {
+    const userId = socket.user._id.toString();
+    const username = socket.user.username;
+
+    console.log(
+      `New client connected: ${socket.id}, User: ${username} (ID: ${userId})`
+    );
+
+    if (!activeUsers.has(userId)) {
+      activeUsers.set(userId, new Set());
+    }
+    activeUsers.get(userId).add(socket.id);
+
+    console.log('Active Users:', Array.from(activeUsers.keys()));
+  } else {
+    console.log(
+      `New client connected: ${socket.id}, but user is not authenticated.`
+    );
+    return;
+  }
 
   socket.on('disconnect', () => {
-    console.log(
-      `Client disconnected: ${socket.id}, User: ${socket.user ? socket.user.username : 'Guest/Unauthorized'}`
-    );
+    if (socket.user) {
+      const userId = socket.user._id.toString();
+      const username = socket.user.username;
+
+      console.log(
+        `Client disconnected: ${socket.id}, User: ${username} (ID: ${userId})`
+      );
+
+      if (activeUsers.has(userId)) {
+        activeUsers.get(userId).delete(socket.id);
+        if (activeUsers.get(userId).size === 0) {
+          activeUsers.delete(userId);
+        }
+      }
+      console.log('Active Users:', Array.from(activeUsers.keys()));
+    } else {
+      console.log(
+        `Client disconnected: ${socket.id}, but user was not authenticated.`
+      );
+    }
   });
 });
 
