@@ -75,6 +75,12 @@ io.on('connection', (socket) => {
       console.log(`Admin ${username} (Socket: ${socket.id}) joined admin_room`);
     }
 
+    // Join a room named after their own userId
+    socket.join(userId);
+    console.log(
+      `User ${username} (Socket: ${socket.id}) joined room: ${userId}`
+    );
+
     io.to('admin_room').emit('user_status_update', {
       userId,
       username,
