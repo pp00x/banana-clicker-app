@@ -5,6 +5,7 @@ const connectDB = require('./src/config/database');
 const authRoutes = require('./src/routes/authRoutes');
 const userRoutes = require('./src/routes/userRoutes');
 const socketAuthMiddleware = require('./src/middleware/socketAuthMiddleware');
+const User = require('./src/models/User');
 
 const express = require('express');
 const app = express();
@@ -56,6 +57,37 @@ io.on('connection', (socket) => {
     );
     return;
   }
+
+  // --- Handle 'banana_click' event ---
+  socket.on('banana_click', async () => {
+    try {
+      if (!socket.user) {
+        console.error(`banana_click from unauthenticated socket: ${socket.id}`);
+        return;
+      }
+
+      const clickingUserId = socket.user._id;
+      const user = await User.findById(clickingUserId);
+
+      if (user) {
+        user.bananaCount += 1;
+        await user.save();
+        console.log(
+          `User ${socket.user.username} clicked. New count: ${user.bananaCount}`
+        );
+      } else {
+        console.error(
+          `User not found for ID: ${clickingUserId} on banana_click`
+        );
+      }
+    } catch (error) {
+      console.error(
+        `Error handling banana_click for user ${socket.user ? socket.user.username : 'unknown'}:`,
+        error
+      );
+    }
+  });
+  // --- End of 'banana_click' event handler ---
 
   socket.on('disconnect', () => {
     if (socket.user) {
