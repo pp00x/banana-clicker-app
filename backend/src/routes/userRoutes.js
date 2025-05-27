@@ -17,4 +17,8 @@ router.get('/', protect, isAdmin, userController.getUsers);
 // @desc    Admin gets user by ID
 // @access  Private/Admin
 router.get('/:userId', protect, isAdmin, userController.getUserById);
+// @route   PUT /api/users/:userId
+// @desc    Admin updates user details
+// @access  Private/Admin
+router.put('/:userId', protect, isAdmin, userController.updateUser);
 module.exports = router;

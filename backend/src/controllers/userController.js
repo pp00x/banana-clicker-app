@@ -111,6 +111,100 @@ exports.getUsers = async (req, res) => {
   }
 };
 
+// @desc    Update user details (by Admin)
+// @route   PUT /api/users/:userId
+// @access  Private/Admin
+exports.updateUser = async (req, res) => {
+  try {
+    const userId = req.params.userId;
+    const { username, email, displayName, avatarUrl, role } = req.body;
+
+    const user = await User.findOne({ _id: userId, isDeleted: false });
+
+    if (!user) {
+      return res
+        .status(404)
+        .json({ message: 'User not found or has been deleted.' });
+    }
+
+    if (email) {
+      if (!validator.isEmail(email)) {
+        return res
+          .status(400)
+          .json({ message: 'Please provide a valid email address.' });
+      }
+      const existingUserByEmail = await User.findOne({
+        email: email,
+        _id: { $ne: userId },
+      });
+      if (existingUserByEmail) {
+        return res
+          .status(400)
+          .json({ message: 'Email already in use by another account.' });
+      }
+      user.email = email;
+    }
+
+    if (username) {
+      const existingUserByUsername = await User.findOne({
+        username: username,
+        _id: { $ne: userId },
+      });
+      if (existingUserByUsername) {
+        return res
+          .status(400)
+          .json({ message: 'Username already taken by another account.' });
+      }
+      user.username = username;
+    }
+
+    if (role) {
+      if (!['player', 'admin'].includes(role)) {
+        return res.status(400).json({
+          message: 'Invalid role specified. Must be "player" or "admin".',
+        });
+      }
+      user.role = role;
+    }
+
+    if (displayName !== undefined) user.displayName = displayName;
+    if (avatarUrl !== undefined) user.avatarUrl = avatarUrl;
+
+    const updatedUser = await user.save();
+
+    const userResponse = {
+      _id: updatedUser._id,
+      username: updatedUser.username,
+      email: updatedUser.email,
+      displayName: updatedUser.displayName,
+      avatarUrl: updatedUser.avatarUrl,
+      role: updatedUser.role,
+      bananaCount: updatedUser.bananaCount,
+      isBlocked: updatedUser.isBlocked,
+      isDeleted: updatedUser.isDeleted,
+      createdAt: updatedUser.createdAt,
+      updatedAt: updatedUser.updatedAt,
+    };
+
+    res.status(200).json({
+      message: 'User updated successfully by admin!',
+      user: userResponse,
+    });
+  } catch (error) {
+    console.error('Update User Error:', error);
+    if (error.name === 'CastError' && error.kind === 'ObjectId') {
+      return res.status(400).json({ message: 'Invalid user ID format.' });
+    }
+    if (error.code === 11000) {
+      let field = Object.keys(error.keyValue)[0];
+      return res
+        .status(400)
+        .json({ message: `An account with that ${field} already exists.` });
+    }
+    res.status(500).json({ message: 'Server error while updating user.' });
+  }
+};
+
 // @desc    Get user by ID (by Admin)
 // @route   GET /api/users/:userId
 // @access  Private/Admin
