@@ -25,4 +25,9 @@ router.put('/:userId', protect, isAdmin, userController.updateUser);
 // @desc    Admin soft deletes a user
 // @access  Private/Admin
 router.delete('/:userId', protect, isAdmin, userController.deleteUser);
+// @route   PUT /api/users/:userId/block
+// @desc    Admin blocks a user
+// @access  Private/Admin
+router.put('/:userId/block', protect, isAdmin, userController.blockUser);
+
 module.exports = router;
