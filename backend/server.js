@@ -7,6 +7,21 @@ const userRoutes = require('./src/routes/userRoutes');
 const socketAuthMiddleware = require('./src/middleware/socketAuthMiddleware');
 const User = require('./src/models/User');
 
+// Helper function to get current ranks
+const getRanks = async () => {
+  try {
+    const rankedUsers = await User.find({ isDeleted: false, isBlocked: false })
+      .sort({ bananaCount: -1 })
+      .limit(100)
+      .select('username displayName avatarUrl bananaCount');
+
+    return rankedUsers;
+  } catch (error) {
+    console.error('Error fetching ranks:', error);
+    return [];
+  }
+};
+
 const express = require('express');
 const app = express();
 
@@ -102,6 +117,10 @@ io.on('connection', (socket) => {
           bananaCount: user.bananaCount,
           activeSockets: activeUsers.get(clickingUserId.toString())?.size || 0,
         });
+
+        // --- Fetch updated ranks and emit to all clients ---
+        const updatedRanks = await getRanks();
+        io.emit('rank_update', updatedRanks);
       } else {
         console.error(
           `User not found for ID: ${clickingUserId} on banana_click`
