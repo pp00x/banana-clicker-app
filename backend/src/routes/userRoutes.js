@@ -9,4 +9,8 @@ const { isAdmin } = require('../middleware/adminMiddleware');
 // @access  Private/Admin
 router.post('/', protect, isAdmin, userController.createUser);
 
+// @route   GET /api/users
+// @desc    Admin gets all users
+// @access  Private/Admin
+router.get('/', protect, isAdmin, userController.getUsers);
 module.exports = router;
