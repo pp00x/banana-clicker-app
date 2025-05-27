@@ -275,6 +275,27 @@ exports.deleteUser = async (req, res) => {
 
     await user.save();
 
+    // --- Force logout active sessions for the deleted user ---
+    const io = req.app.get('socketio');
+    const activeUsersMap = req.app.get('activeUsers');
+    const userIdToString = user._id.toString();
+
+    if (io && activeUsersMap && activeUsersMap.has(userIdToString)) {
+      const SocketsToDisconnect = activeUsersMap.get(userIdToString);
+      SocketsToDisconnect.forEach((socketId) => {
+        const targetSocket = io.sockets.sockets.get(socketId);
+        if (targetSocket) {
+          targetSocket.emit('force_logout', {
+            message: 'Your account has been deleted.',
+          });
+          targetSocket.disconnect(true);
+          console.log(
+            `Force logout event sent to socket ${socketId} for user ${user.username}`
+          );
+        }
+      });
+    }
+
     res.status(200).json({ message: 'User soft deleted successfully.' });
   } catch (error) {
     console.error('Delete User Error:', error);
@@ -317,6 +338,27 @@ exports.blockUser = async (req, res) => {
 
     userToBlock.isBlocked = true;
     const updatedUser = await userToBlock.save();
+
+    // --- Force logout active sessions for the blocked user ---
+    const io = req.app.get('socketio');
+    const activeUsersMap = req.app.get('activeUsers');
+    const userIdToString = updatedUser._id.toString();
+
+    if (io && activeUsersMap && activeUsersMap.has(userIdToString)) {
+      const SocketsToDisconnect = activeUsersMap.get(userIdToString);
+      SocketsToDisconnect.forEach((socketId) => {
+        const targetSocket = io.sockets.sockets.get(socketId);
+        if (targetSocket) {
+          targetSocket.emit('force_logout', {
+            message: 'Your account has been blocked.',
+          });
+          targetSocket.disconnect(true);
+          console.log(
+            `Force logout event sent to socket ${socketId} for user ${updatedUser.username}`
+          );
+        }
+      });
+    }
 
     res.status(200).json({
       message: 'User blocked successfully.',

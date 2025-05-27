@@ -38,6 +38,9 @@ const activeUsers = new Map();
 
 io.use(socketAuthMiddleware);
 
+app.set('socketio', io);
+app.set('activeUsers', activeUsers);
+
 connectDB();
 
 app.use(express.json());
