@@ -86,3 +86,64 @@ exports.register = async (req, res) => {
     res.status(500).json({ message: 'Server error during registration.' });
   }
 };
+
+exports.login = async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    // --- Basic Input Validation ---
+    if (!email || !password) {
+      return res
+        .status(400)
+        .json({ message: 'Please provide email and password.' });
+    }
+
+    if (!validator.isEmail(email)) {
+      return res
+        .status(400)
+        .json({ message: 'Please provide a valid email address.' });
+    }
+
+    // --- Find User ---
+    const user = await User.findOne({ email, isDeleted: false });
+    if (!user) {
+      return res.status(401).json({ message: 'Invalid credentials.' });
+    }
+
+    // --- Verify Password ---
+    const isMatch = await user.comparePassword(password);
+    if (!isMatch) {
+      return res.status(401).json({ message: 'Invalid credentials.' });
+    }
+
+    // --- Check if Blocked ---
+    if (user.isBlocked) {
+      return res.status(403).json({
+        message: 'Your account is blocked. Please contact support.',
+      });
+    }
+
+    // --- Generate JWT ---
+    const token = generateToken(user._id, user.role);
+
+    // --- Send Response ---
+    const userResponse = {
+      _id: user._id,
+      username: user.username,
+      email: user.email,
+      displayName: user.displayName,
+      avatarUrl: user.avatarUrl,
+      role: user.role,
+      bananaCount: user.bananaCount,
+    };
+
+    res.status(200).json({
+      message: 'Login successful!',
+      token,
+      user: userResponse,
+    });
+  } catch (error) {
+    console.error('Login Error:', error);
+    res.status(500).json({ message: 'Server error during login.' });
+  }
+};
