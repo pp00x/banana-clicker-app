@@ -65,17 +65,11 @@ userSchema.pre('save', async function (next) {
 });
 
 userSchema.methods.comparePassword = async function (candidatePassword) {
-  try {
-    return await bcrypt.compare(candidatePassword, this.password);
-  } catch (error) {
-    throw error;
-  }
+  return bcrypt.compare(candidatePassword, this.password);
 };
 
-userSchema.index({ email: 1 });
-userSchema.index({ username: 1 });
-userSchema.index({ bananaCount: -1 });
-userSchema.index({ isDeleted: 1, isBlocked: 1 });
+userSchema.index({ bananaCount: -1 }); // Index on bananaCount for sorting ranks
+userSchema.index({ isDeleted: 1, isBlocked: 1 }); // Compound index for querying active/non-deleted users
 
 const User = mongoose.model('User', userSchema);
 
