@@ -51,6 +51,19 @@ io.on('connection', (socket) => {
     activeUsers.get(userId).add(socket.id);
 
     console.log('Active Users:', Array.from(activeUsers.keys()));
+
+    if (socket.user.role === 'admin') {
+      socket.join('admin_room');
+      console.log(`Admin ${username} (Socket: ${socket.id}) joined admin_room`);
+    }
+
+    io.to('admin_room').emit('user_status_update', {
+      userId,
+      username,
+      status: 'online',
+      bananaCount: socket.user.bananaCount,
+      activeSockets: activeUsers.get(userId)?.size || 0,
+    });
   } else {
     console.log(
       `New client connected: ${socket.id}, but user is not authenticated.`
@@ -81,6 +94,14 @@ io.on('connection', (socket) => {
           userId: clickingUserId,
           bananaCount: user.bananaCount,
         });
+
+        io.to('admin_room').emit('user_status_update', {
+          userId: user._id.toString(),
+          username: user.username,
+          status: 'online',
+          bananaCount: user.bananaCount,
+          activeSockets: activeUsers.get(clickingUserId.toString())?.size || 0,
+        });
       } else {
         console.error(
           `User not found for ID: ${clickingUserId} on banana_click`
@@ -105,10 +126,21 @@ io.on('connection', (socket) => {
       );
 
       if (activeUsers.has(userId)) {
-        activeUsers.get(userId).delete(socket.id);
-        if (activeUsers.get(userId).size === 0) {
+        const userSockets = activeUsers.get(userId);
+        userSockets.delete(socket.id);
+        const remainingSockets = userSockets.size;
+
+        if (remainingSockets === 0) {
           activeUsers.delete(userId);
         }
+
+        io.to('admin_room').emit('user_status_update', {
+          userId,
+          username,
+          status: remainingSockets === 0 ? 'offline' : 'online',
+          bananaCount: socket.user.bananaCount,
+          activeSockets: remainingSockets,
+        });
       }
       console.log('Active Users:', Array.from(activeUsers.keys()));
     } else {
