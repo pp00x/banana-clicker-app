@@ -234,3 +234,38 @@ exports.getUserById = async (req, res) => {
       .json({ message: 'Server error while retrieving user details.' });
   }
 };
+
+// @desc    Soft delete a user (by Admin)
+// @route   DELETE /api/users/:userId
+// @access  Private/Admin
+exports.deleteUser = async (req, res) => {
+  try {
+    const userId = req.params.userId;
+
+    const user = await User.findById(userId);
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found.' });
+    }
+
+    if (user.isDeleted) {
+      return res
+        .status(200)
+        .json({ message: 'User was already marked as deleted.' });
+    }
+
+    user.isDeleted = true;
+
+    await user.save();
+
+    
+
+    res.status(200).json({ message: 'User soft deleted successfully.' });
+  } catch (error) {
+    console.error('Delete User Error:', error);
+    if (error.name === 'CastError' && error.kind === 'ObjectId') {
+      return res.status(400).json({ message: 'Invalid user ID format.' });
+    }
+    res.status(500).json({ message: 'Server error while deleting user.' });
+  }
+};

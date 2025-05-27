@@ -21,4 +21,8 @@ router.get('/:userId', protect, isAdmin, userController.getUserById);
 // @desc    Admin updates user details
 // @access  Private/Admin
 router.put('/:userId', protect, isAdmin, userController.updateUser);
+// @route   DELETE /api/users/:userId
+// @desc    Admin soft deletes a user
+// @access  Private/Admin
+router.delete('/:userId', protect, isAdmin, userController.deleteUser);
 module.exports = router;
