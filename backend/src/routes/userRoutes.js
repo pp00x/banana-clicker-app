@@ -13,4 +13,8 @@ router.post('/', protect, isAdmin, userController.createUser);
 // @desc    Admin gets all users
 // @access  Private/Admin
 router.get('/', protect, isAdmin, userController.getUsers);
+// @route   GET /api/users/:userId
+// @desc    Admin gets user by ID
+// @access  Private/Admin
+router.get('/:userId', protect, isAdmin, userController.getUserById);
 module.exports = router;
