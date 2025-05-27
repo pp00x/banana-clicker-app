@@ -330,3 +330,44 @@ exports.blockUser = async (req, res) => {
     res.status(500).json({ message: 'Server error while blocking user.' });
   }
 };
+
+// @desc    Unblock a user (by Admin)
+// @route   PUT /api/users/:userId/unblock
+// @access  Private/Admin
+exports.unblockUser = async (req, res) => {
+  try {
+    const userIdToUnblock = req.params.userId;
+
+    const userToUnblock = await User.findOne({
+      _id: userIdToUnblock,
+      isDeleted: false,
+    });
+
+    if (!userToUnblock) {
+      return res
+        .status(404)
+        .json({ message: 'User not found or has been deleted.' });
+    }
+
+    if (!userToUnblock.isBlocked) {
+      return res.status(200).json({
+        message: 'User is already unblocked.',
+        user: userToResponse(userToUnblock),
+      });
+    }
+
+    userToUnblock.isBlocked = false;
+    const updatedUser = await userToUnblock.save();
+
+    res.status(200).json({
+      message: 'User unblocked successfully.',
+      user: userToResponse(updatedUser),
+    });
+  } catch (error) {
+    console.error('Unblock User Error:', error);
+    if (error.name === 'CastError' && error.kind === 'ObjectId') {
+      return res.status(400).json({ message: 'Invalid user ID format.' });
+    }
+    res.status(500).json({ message: 'Server error while unblocking user.' });
+  }
+};
