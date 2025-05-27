@@ -75,6 +75,12 @@ io.on('connection', (socket) => {
         console.log(
           `User ${socket.user.username} clicked. New count: ${user.bananaCount}`
         );
+
+        // --- Emit 'player_score_update' back to the clicking player ---
+        socket.emit('player_score_update', {
+          userId: clickingUserId,
+          bananaCount: user.bananaCount,
+        });
       } else {
         console.error(
           `User not found for ID: ${clickingUserId} on banana_click`
