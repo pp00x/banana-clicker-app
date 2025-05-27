@@ -1,6 +1,7 @@
 require('dotenv').config(); // Loads environment variables from .env file
 
 const connectDB = require('./src/config/database');
+const authRoutes = require('./src/routes/authRoutes');
 
 const express = require('express');
 const app = express();
@@ -8,8 +9,15 @@ const app = express();
 // Connect to MongoDB
 connectDB();
 
+// Middleware to parse JSON bodies
+app.use(express.json());
+
 const PORT = process.env.PORT || 3000;
 
+// API Routes
+app.use('/api/auth', authRoutes);
+
+// Basic test route
 app.get('/', (req, res) => {
   res.send('Banana Clicker Backend is Alive!');
 });
