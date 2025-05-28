@@ -4,6 +4,8 @@ const { Server } = require('socket.io');
 const express = require('express');
 const helmet = require('helmet');
 const morgan = require('morgan');
+const swaggerUi = require('swagger-ui-express');
+const swaggerSpec = require('./src/config/swaggerConfig');
 
 const authRoutes = require('./src/routes/authRoutes');
 const userRoutes = require('./src/routes/userRoutes');
@@ -53,6 +55,9 @@ app.use(morgan('combined', { stream: logger.stream }));
 
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
+
+// Swagger API Documentation Route
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 app.get('/', (req, res) => {
   res.send('Banana Clicker Backend is Alive!');
