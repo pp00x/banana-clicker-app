@@ -1,6 +1,7 @@
 const User = require('../models/User');
 const jwt = require('jsonwebtoken');
 const validator = require('validator');
+const logger = require('../config/logger');
 
 // Function to generate JWT
 const generateToken = (id, role) => {
@@ -65,7 +66,11 @@ exports.register = async (req, res) => {
       user: userResponse,
     });
   } catch (error) {
-    console.error('Registration Error:', error);
+    logger.error('Registration Error:', {
+      message: error.message,
+      stack: error.stack,
+      details: error.errors || error.keyValue,
+    });
     if (error.name === 'ValidationError' || error.code === 11000) {
       let errorMessage = 'Registration failed due to validation issues.';
       if (error.code === 11000) {
@@ -143,7 +148,10 @@ exports.login = async (req, res) => {
       user: userResponse,
     });
   } catch (error) {
-    console.error('Login Error:', error);
+    logger.error('Login Error:', {
+      message: error.message,
+      stack: error.stack,
+    });
     res.status(500).json({ message: 'Server error during login.' });
   }
 };

@@ -7,6 +7,8 @@ const userRoutes = require('./src/routes/userRoutes');
 const socketAuthMiddleware = require('./src/middleware/socketAuthMiddleware');
 const User = require('./src/models/User');
 const errorHandlerMiddleware = require('./src/middleware/errorHandlerMiddleware');
+const logger = require('./src/config/logger');
+const morgan = require('morgan');
 
 // Helper function to get current ranks
 const getRanks = async () => {
@@ -18,7 +20,10 @@ const getRanks = async () => {
 
     return rankedUsers;
   } catch (error) {
-    console.error('Error fetching ranks:', error);
+    logger.error('Error fetching ranks:', {
+      error: error.message,
+      stack: error.stack,
+    });
     return [];
   }
 };
@@ -46,6 +51,12 @@ connectDB();
 
 app.use(express.json());
 
+// HTTP Request Logging with Morgan, piped to Winston
+if (process.env.NODE_ENV === 'development') {
+  app.use(morgan('dev')); // Log to console in dev
+}
+app.use(morgan('combined', { stream: logger.stream })); // Log all requests via Winston
+
 const PORT = process.env.PORT || 3000;
 
 app.use('/api/auth', authRoutes);
@@ -63,7 +74,7 @@ io.on('connection', (socket) => {
     const userId = socket.user._id.toString();
     const username = socket.user.username;
 
-    console.log(
+    logger.info(
       `New client connected: ${socket.id}, User: ${username} (ID: ${userId})`
     );
 
@@ -72,16 +83,18 @@ io.on('connection', (socket) => {
     }
     activeUsers.get(userId).add(socket.id);
 
-    console.log('Active Users:', Array.from(activeUsers.keys()));
+    logger.debug('Active Users:', {
+      activeUsers: Array.from(activeUsers.keys()),
+    });
 
     if (socket.user.role === 'admin') {
       socket.join('admin_room');
-      console.log(`Admin ${username} (Socket: ${socket.id}) joined admin_room`);
+      logger.info(`Admin ${username} (Socket: ${socket.id}) joined admin_room`);
     }
 
     // Join a room named after their own userId
     socket.join(userId);
-    console.log(
+    logger.info(
       `User ${username} (Socket: ${socket.id}) joined room: ${userId}`
     );
 
@@ -93,9 +106,7 @@ io.on('connection', (socket) => {
       activeSockets: activeUsers.get(userId)?.size || 0,
     });
   } else {
-    console.log(
-      `New client connected: ${socket.id}, but user is not authenticated.`
-    );
+    logger.warn(`Unauthenticated client connection attempt: ${socket.id}`);
     return;
   }
 
@@ -103,7 +114,7 @@ io.on('connection', (socket) => {
   socket.on('banana_click', async () => {
     try {
       if (!socket.user) {
-        console.error(`banana_click from unauthenticated socket: ${socket.id}`);
+        logger.warn(`banana_click from unauthenticated socket: ${socket.id}`);
         return;
       }
 
@@ -113,7 +124,7 @@ io.on('connection', (socket) => {
       if (user) {
         user.bananaCount += 1;
         await user.save();
-        console.log(
+        logger.info(
           `User ${socket.user.username} clicked. New count: ${user.bananaCount}`
         );
 
@@ -135,14 +146,14 @@ io.on('connection', (socket) => {
         const updatedRanks = await getRanks();
         io.emit('rank_update', updatedRanks);
       } else {
-        console.error(
+        logger.error(
           `User not found for ID: ${clickingUserId} on banana_click`
         );
       }
     } catch (error) {
-      console.error(
+      logger.error(
         `Error handling banana_click for user ${socket.user ? socket.user.username : 'unknown'}:`,
-        error
+        { error: error.message, stack: error.stack }
       );
     }
   });
@@ -153,7 +164,7 @@ io.on('connection', (socket) => {
       const userId = socket.user._id.toString();
       const username = socket.user.username;
 
-      console.log(
+      logger.info(
         `Client disconnected: ${socket.id}, User: ${username} (ID: ${userId})`
       );
 
@@ -174,17 +185,17 @@ io.on('connection', (socket) => {
           activeSockets: remainingSockets,
         });
       }
-      console.log('Active Users:', Array.from(activeUsers.keys()));
+      logger.debug('Active Users:', {
+        activeUsers: Array.from(activeUsers.keys()),
+      });
     } else {
-      console.log(
-        `Client disconnected: ${socket.id}, but user was not authenticated.`
-      );
+      logger.warn(`Unauthenticated client disconnected: ${socket.id}`);
     }
   });
 });
 
 server.listen(PORT, () => {
-  console.log(
+  logger.info(
     `Server (HTTP & Socket.io) is running on http://localhost:${PORT}`
   );
 });

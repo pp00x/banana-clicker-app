@@ -1,7 +1,19 @@
+const logger = require('../config/logger');
+
 // eslint-disable-next-line no-unused-vars
 const errorHandlerMiddleware = (err, req, res, next) => {
-  console.error('ERROR STACK:', err.stack);
-  console.error('ERROR MESSAGE:', err.message);
+  logger.error('Unhandled Error Caught by Global Error Handler:', {
+    message: err.message,
+    stack: err.stack,
+    statusCodeFromError: err.statusCode,
+    resolvedStatusCode:
+      res.statusCode === 200 && !err.statusCode
+        ? 500
+        : err.statusCode || res.statusCode,
+    url: req.originalUrl,
+    method: req.method,
+    ip: req.ip,
+  });
 
   const statusCode =
     err.statusCode || res.statusCode === 200 ? 500 : res.statusCode;

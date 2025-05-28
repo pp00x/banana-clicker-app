@@ -1,5 +1,6 @@
 const User = require('../models/User');
 const validator = require('validator');
+const logger = require('../config/logger');
 
 // Helper function to format user response
 const userToResponse = (user) => {
@@ -88,7 +89,12 @@ exports.createUser = async (req, res) => {
       user: userResponse,
     });
   } catch (error) {
-    console.error('Create User Error:', error);
+    logger.error('Create User Error:', {
+      context: 'createUser',
+      message: error.message,
+      stack: error.stack,
+      details: error.errors || error.keyValue,
+    });
     if (error.name === 'ValidationError' || error.code === 11000) {
       let errorMessage = 'User creation failed due to validation issues.';
       if (error.code === 11000) {
@@ -123,7 +129,11 @@ exports.getUsers = async (req, res) => {
       users: users,
     });
   } catch (error) {
-    console.error('Get Users Error:', error);
+    logger.error('Get Users Error:', {
+      context: 'getUsers',
+      message: error.message,
+      stack: error.stack,
+    });
     res.status(500).json({ message: 'Server error while retrieving users.' });
   }
 };
@@ -208,7 +218,13 @@ exports.updateUser = async (req, res) => {
       user: userResponse,
     });
   } catch (error) {
-    console.error('Update User Error:', error);
+    logger.error('Update User Error:', {
+      context: 'updateUser',
+      userId: req.params.userId,
+      message: error.message,
+      stack: error.stack,
+      details: error.errors || error.keyValue,
+    });
     if (error.name === 'CastError' && error.kind === 'ObjectId') {
       return res.status(400).json({ message: 'Invalid user ID format.' });
     }
@@ -242,7 +258,12 @@ exports.getUserById = async (req, res) => {
       user: user,
     });
   } catch (error) {
-    console.error('Get User By ID Error:', error);
+    logger.error('Get User By ID Error:', {
+      context: 'getUserById',
+      userId: req.params.userId,
+      message: error.message,
+      stack: error.stack,
+    });
     if (error.name === 'CastError' && error.kind === 'ObjectId') {
       return res.status(400).json({ message: 'Invalid user ID format.' });
     }
@@ -289,7 +310,7 @@ exports.deleteUser = async (req, res) => {
             message: 'Your account has been deleted.',
           });
           targetSocket.disconnect(true);
-          console.log(
+          logger.info(
             `Force logout event sent to socket ${socketId} for user ${user.username}`
           );
         }
@@ -298,7 +319,12 @@ exports.deleteUser = async (req, res) => {
 
     res.status(200).json({ message: 'User soft deleted successfully.' });
   } catch (error) {
-    console.error('Delete User Error:', error);
+    logger.error('Delete User Error:', {
+      context: 'deleteUser',
+      userId: req.params.userId,
+      message: error.message,
+      stack: error.stack,
+    });
     if (error.name === 'CastError' && error.kind === 'ObjectId') {
       return res.status(400).json({ message: 'Invalid user ID format.' });
     }
@@ -353,7 +379,7 @@ exports.blockUser = async (req, res) => {
             message: 'Your account has been blocked.',
           });
           targetSocket.disconnect(true);
-          console.log(
+          logger.info(
             `Force logout event sent to socket ${socketId} for user ${updatedUser.username}`
           );
         }
@@ -365,7 +391,12 @@ exports.blockUser = async (req, res) => {
       user: userToResponse(updatedUser),
     });
   } catch (error) {
-    console.error('Block User Error:', error);
+    logger.error('Block User Error:', {
+      context: 'blockUser',
+      userId: req.params.userId,
+      message: error.message,
+      stack: error.stack,
+    });
     if (error.name === 'CastError' && error.kind === 'ObjectId') {
       return res.status(400).json({ message: 'Invalid user ID format.' });
     }
@@ -406,7 +437,12 @@ exports.unblockUser = async (req, res) => {
       user: userToResponse(updatedUser),
     });
   } catch (error) {
-    console.error('Unblock User Error:', error);
+    logger.error('Unblock User Error:', {
+      context: 'unblockUser',
+      userId: req.params.userId,
+      message: error.message,
+      stack: error.stack,
+    });
     if (error.name === 'CastError' && error.kind === 'ObjectId') {
       return res.status(400).json({ message: 'Invalid user ID format.' });
     }
