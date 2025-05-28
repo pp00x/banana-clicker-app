@@ -273,6 +273,92 @@ describe('Auth Endpoints Basic Validation', () => {
         expect(response.statusCode).toBe(401);
       });
     });
+
+    describe('GET /api/users/:userId - Admin Get Player Details', () => {
+      let testPlayer;
+
+      beforeEach(async () => {
+        testPlayer = await User.create({
+          username: 'detailplayer',
+          email: 'detail@example.com',
+          password: 'password123',
+          displayName: 'Detail Player',
+        });
+      });
+
+      it('admin should successfully retrieve details for an existing player', async () => {
+        const response = await request(app)
+          .get(`/api/users/${testPlayer._id}`)
+          .set('Authorization', `Bearer ${adminToken}`);
+
+        expect(response.statusCode).toBe(200);
+        expect(response.body.message).toBe(
+          'User details retrieved successfully!'
+        );
+        expect(response.body.user).toBeDefined();
+        expect(response.body.user._id).toBe(testPlayer._id.toString());
+        expect(response.body.user.username).toBe(testPlayer.username);
+        expect(response.body.user.password).toBeUndefined();
+      });
+
+      it('admin should get 404 for a non-existent userId', async () => {
+        const nonExistentId = new mongoose.Types.ObjectId();
+        const response = await request(app)
+          .get(`/api/users/${nonExistentId}`)
+          .set('Authorization', `Bearer ${adminToken}`);
+        expect(response.statusCode).toBe(404);
+        expect(response.body.message).toBe(
+          'User not found or has been deleted.'
+        );
+      });
+
+      it('admin should get 404 for a soft-deleted user', async () => {
+        const softDeletedPlayer = await User.create({
+          username: 'softdeleted',
+          email: 'softdeleted@example.com',
+          password: 'password123',
+          isDeleted: true,
+        });
+        const response = await request(app)
+          .get(`/api/users/${softDeletedPlayer._id}`)
+          .set('Authorization', `Bearer ${adminToken}`);
+        expect(response.statusCode).toBe(404);
+        expect(response.body.message).toBe(
+          'User not found or has been deleted.'
+        );
+      });
+
+      it('admin should get 400 for an invalid userId format', async () => {
+        const response = await request(app)
+          .get('/api/users/invalidObjectIdFormat')
+          .set('Authorization', `Bearer ${adminToken}`);
+        expect(response.statusCode).toBe(400);
+        expect(response.body.message).toBe('Invalid user ID format.');
+      });
+
+      it('non-admin user should fail to retrieve player details (403 Forbidden)', async () => {
+        const playerData = {
+          username: 'playerdetailattempt',
+          email: 'playerdetailattempt@example.com',
+          password: 'password123',
+        };
+        await User.create(playerData);
+        const playerLoginResponse = await request(app)
+          .post('/api/auth/login')
+          .send({ email: playerData.email, password: playerData.password });
+        const playerToken = playerLoginResponse.body.token;
+
+        const response = await request(app)
+          .get(`/api/users/${testPlayer._id}`)
+          .set('Authorization', `Bearer ${playerToken}`);
+        expect(response.statusCode).toBe(403);
+      });
+
+      it('should fail to retrieve player details without a token (401 Unauthorized)', async () => {
+        const response = await request(app).get(`/api/users/${testPlayer._id}`);
+        expect(response.statusCode).toBe(401);
+      });
+    });
   });
 
   it('should login an existing user successfully with correct credentials', async () => {
