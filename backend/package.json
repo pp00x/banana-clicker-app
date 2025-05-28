@@ -4,7 +4,7 @@
   "description": "This directory contains all the server-side code for the Banana Clicker application.",
   "main": "server.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "cross-env NODE_ENV=test jest --testTimeout=10000 --detectOpenHandles",
     "dev": "nodemon server.js",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
@@ -31,6 +31,8 @@
     "winston": "^3.17.0"
   },
   "devDependencies": {
+    "@shelf/jest-mongodb": "^5.2.2",
+    "cross-env": "^7.0.3",
     "eslint": "^8.57.0",
     "eslint-config-prettier": "^10.1.5",
     "eslint-plugin-prettier": "^5.4.0",
