@@ -359,6 +359,133 @@ describe('Auth Endpoints Basic Validation', () => {
         expect(response.statusCode).toBe(401);
       });
     });
+
+    describe('PUT /api/users/:userId - Admin Edit Player Details', () => {
+      let playerToEdit;
+
+      beforeEach(async () => {
+        playerToEdit = await User.create({
+          username: 'editplayer',
+          email: 'edit@example.com',
+          password: 'password123',
+          displayName: 'Edit Me Player',
+        });
+      });
+
+      it('admin should successfully update displayName and avatarUrl', async () => {
+        const updates = {
+          displayName: 'Updated Name',
+          avatarUrl: 'http://example.com/newavatar.png',
+        };
+        const response = await request(app)
+          .put(`/api/users/${playerToEdit._id}`)
+          .set('Authorization', `Bearer ${adminToken}`)
+          .send(updates);
+
+        expect(response.statusCode).toBe(200);
+        expect(response.body.message).toBe(
+          'User updated successfully by admin!'
+        );
+        expect(response.body.user.displayName).toBe(updates.displayName);
+        expect(response.body.user.avatarUrl).toBe(updates.avatarUrl);
+
+        const userInDb = await User.findById(playerToEdit._id);
+        expect(userInDb.displayName).toBe(updates.displayName);
+        expect(userInDb.avatarUrl).toBe(updates.avatarUrl);
+      });
+
+      it('admin should successfully update username to a unique one', async () => {
+        const updates = { username: 'uniqueUpdatedUsername' };
+        const response = await request(app)
+          .put(`/api/users/${playerToEdit._id}`)
+          .set('Authorization', `Bearer ${adminToken}`)
+          .send(updates);
+        expect(response.statusCode).toBe(200);
+        expect(response.body.user.username).toBe(updates.username);
+      });
+
+      it('admin should successfully update email to a unique one', async () => {
+        const updates = { email: 'uniqueUpdatedEmail@example.com' };
+        const expectedEmailInResponse = 'uniqueupdatedemail@example.com';
+        const response = await request(app)
+          .put(`/api/users/${playerToEdit._id}`)
+          .set('Authorization', `Bearer ${adminToken}`)
+          .send(updates);
+        expect(response.statusCode).toBe(200);
+        expect(response.body.user.email).toBe(expectedEmailInResponse);
+      });
+
+      it('admin should successfully update role', async () => {
+        const updates = { role: 'admin' };
+        const response = await request(app)
+          .put(`/api/users/${playerToEdit._id}`)
+          .set('Authorization', `Bearer ${adminToken}`)
+          .send(updates);
+        expect(response.statusCode).toBe(200);
+        expect(response.body.user.role).toBe('admin');
+      });
+
+      it('admin should fail to update username if new username is taken', async () => {
+        await User.create({
+          username: 'existingUsername',
+          email: 'other@example.com',
+          password: 'p',
+        });
+        const updates = { username: 'existingUsername' };
+        const response = await request(app)
+          .put(`/api/users/${playerToEdit._id}`)
+          .set('Authorization', `Bearer ${adminToken}`)
+          .send(updates);
+        expect(response.statusCode).toBe(400);
+        expect(response.body.message).toBe(
+          'Username already taken by another account.'
+        );
+      });
+
+      it('admin should fail to update email if new email is taken', async () => {
+        await User.create({
+          username: 'otheruser',
+          email: 'existingEmail@example.com',
+          password: 'p',
+        });
+        const updates = { email: 'existingEmail@example.com' };
+        const response = await request(app)
+          .put(`/api/users/${playerToEdit._id}`)
+          .set('Authorization', `Bearer ${adminToken}`)
+          .send(updates);
+        expect(response.statusCode).toBe(400);
+        expect(response.body.message).toBe(
+          'Email already in use by another account.'
+        );
+      });
+
+      it('admin should fail to update with an invalid role', async () => {
+        const updates = { role: 'invalidRole' };
+        const response = await request(app)
+          .put(`/api/users/${playerToEdit._id}`)
+          .set('Authorization', `Bearer ${adminToken}`)
+          .send(updates);
+        expect(response.statusCode).toBe(400);
+        expect(response.body.message).toBe(
+          'Invalid role specified. Must be "player" or "admin".'
+        );
+      });
+
+      it('should not update password via this endpoint', async () => {
+        const originalUser = await User.findById(playerToEdit._id);
+        const originalPasswordHash = originalUser.password;
+
+        const updates = { password: 'newPasswordAttempt123' };
+        const response = await request(app)
+          .put(`/api/users/${playerToEdit._id}`)
+          .set('Authorization', `Bearer ${adminToken}`)
+          .send(updates);
+
+        expect(response.statusCode).toBe(200);
+        const userInDb = await User.findById(playerToEdit._id);
+        expect(userInDb.password).toBe(originalPasswordHash);
+      });
+    });
   });
 
   it('should login an existing user successfully with correct credentials', async () => {
