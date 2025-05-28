@@ -184,6 +184,95 @@ describe('Auth Endpoints Basic Validation', () => {
         );
       });
     });
+
+    describe('GET /api/users - Admin List Players', () => {
+      it('admin should successfully retrieve a list of users', async () => {
+        await User.create({
+          username: 'player1',
+          email: 'player1@example.com',
+          password: 'password123',
+        });
+        await User.create({
+          username: 'player2',
+          email: 'player2@example.com',
+          password: 'password123',
+        });
+
+        const response = await request(app)
+          .get('/api/users')
+          .set('Authorization', `Bearer ${adminToken}`);
+
+        expect(response.statusCode).toBe(200);
+        expect(response.body.message).toBe('Users retrieved successfully!');
+        expect(response.body.users).toBeInstanceOf(Array);
+
+        expect(response.body.users.length).toBeGreaterThanOrEqual(3);
+
+        response.body.users.forEach((user) => {
+          expect(user.password).toBeUndefined();
+          expect(user.isDeleted).toBe(false);
+        });
+      });
+
+      it('should not list soft-deleted users', async () => {
+        await User.create({
+          username: 'player3',
+          email: 'player3@example.com',
+          password: 'password123',
+        });
+        await User.create({
+          username: 'deletedplayer',
+          email: 'deletedplayer@example.com',
+          password: 'password123',
+          isDeleted: true,
+        });
+
+        const response = await request(app)
+          .get('/api/users')
+          .set('Authorization', `Bearer ${adminToken}`);
+
+        expect(response.statusCode).toBe(200);
+        const usernames = response.body.users.map((u) => u.username);
+        expect(usernames).not.toContain('deletedplayer');
+
+        const foundPlayer3 = response.body.users.find(
+          (u) => u.username === 'player3'
+        );
+        expect(foundPlayer3).toBeDefined();
+
+        const foundAdmin = response.body.users.find(
+          (u) => u.username === 'superadmin_test'
+        );
+        expect(foundAdmin).toBeDefined();
+        expect(response.body.users.length).toBe(2); // player3 + superadmin_test
+      });
+
+      it('non-admin user should fail to retrieve the list of users (403 Forbidden)', async () => {
+        const playerData = {
+          username: 'playerattempt',
+          email: 'playerattempt@example.com',
+          password: 'password123',
+        };
+        await User.create(playerData);
+        const playerLoginResponse = await request(app)
+          .post('/api/auth/login')
+          .send({ email: playerData.email, password: playerData.password });
+        const playerToken = playerLoginResponse.body.token;
+        expect(playerToken).toBeDefined();
+
+        const response = await request(app)
+          .get('/api/users')
+          .set('Authorization', `Bearer ${playerToken}`);
+
+        expect(response.statusCode).toBe(403);
+      });
+
+      it('should fail to retrieve list of users without a token (401 Unauthorized)', async () => {
+        const response = await request(app).get('/api/users');
+
+        expect(response.statusCode).toBe(401);
+      });
+    });
   });
 
   it('should login an existing user successfully with correct credentials', async () => {
