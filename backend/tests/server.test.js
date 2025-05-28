@@ -486,7 +486,123 @@ describe('Auth Endpoints Basic Validation', () => {
         expect(userInDb.password).toBe(originalPasswordHash);
       });
     });
+    describe('DELETE /api/users/:userId - Admin Soft Delete Player', () => {
+      let playerToDelete;
+      let anotherAdminUser;
+
+      beforeEach(async () => {
+        // Admin user (superadmin_test) is created by the outer beforeEach of 'User Management'
+        playerToDelete = await User.create({
+          username: 'deleteplayer',
+          email: 'delete@example.com',
+          password: 'password123',
+        });
+        anotherAdminUser = await User.create({
+          username: 'anotheradmintodelete',
+          email: 'anotheradmin@example.com',
+          password: 'password123',
+          role: 'admin',
+        });
+      });
+
+      it('admin should successfully soft-delete an existing player', async () => {
+        const response = await request(app)
+          .delete(`/api/users/${playerToDelete._id}`)
+          .set('Authorization', `Bearer ${adminToken}`);
+
+        expect(response.statusCode).toBe(200);
+        expect(response.body.message).toBe('User soft deleted successfully.');
+
+        const userInDb = await User.findById(playerToDelete._id);
+        expect(userInDb.isDeleted).toBe(true);
+
+        // Verify GET /api/users/:userId returns 404 for this user
+        const getResponse = await request(app)
+          .get(`/api/users/${playerToDelete._id}`)
+          .set('Authorization', `Bearer ${adminToken}`);
+        expect(getResponse.statusCode).toBe(404);
+      });
+
+      it('admin should receive success message when attempting to soft-delete an already soft-deleted player', async () => {
+        playerToDelete.isDeleted = true;
+        await playerToDelete.save();
+
+        const response = await request(app)
+          .delete(`/api/users/${playerToDelete._id}`)
+          .set('Authorization', `Bearer ${adminToken}`);
+
+        expect(response.statusCode).toBe(200);
+        expect(response.body.message).toBe(
+          'User was already marked as deleted.'
+        );
+      });
+
+      it('admin should get 404 when attempting to soft-delete a non-existent userId', async () => {
+        const nonExistentId = new mongoose.Types.ObjectId();
+        const response = await request(app)
+          .delete(`/api/users/${nonExistentId}`)
+          .set('Authorization', `Bearer ${adminToken}`);
+        expect(response.statusCode).toBe(404);
+        expect(response.body.message).toBe('User not found.');
+      });
+
+      it('admin should get 400 for an invalid userId format when attempting to delete', async () => {
+        const response = await request(app)
+          .delete('/api/users/invalidObjectIdFormat')
+          .set('Authorization', `Bearer ${adminToken}`);
+        expect(response.statusCode).toBe(400);
+        expect(response.body.message).toBe('Invalid user ID format.');
+      });
+
+      it('admin should not be able to soft-delete themselves', async () => {
+        const adminUserFromDB = await User.findOne({
+          email: 'admin_test@example.com',
+        }); // This is the admin from outer beforeEach
+        expect(adminUserFromDB).not.toBeNull();
+
+        const response = await request(app)
+          .delete(`/api/users/${adminUserFromDB._id}`)
+          .set('Authorization', `Bearer ${adminToken}`);
+
+        expect(response.statusCode).toBe(403);
+        expect(response.body.message).toBe(
+          'Admins cannot delete their own account.'
+        );
+      });
+
+      it('admin should not be able to soft-delete another admin', async () => {
+        const response = await request(app)
+          .delete(`/api/users/${anotherAdminUser._id}`)
+          .set('Authorization', `Bearer ${adminToken}`);
+
+        expect(response.statusCode).toBe(403);
+        expect(response.body.message).toBe(
+          'Admins cannot delete other admin accounts.'
+        );
+      });
+
+      it('non-admin user should fail to soft-delete a player (403 Forbidden)', async () => {
+        const playerData = {
+          username: 'playerdeleteattempt',
+          email: 'playerdeleteattempt@example.com',
+          password: 'password123',
+        };
+        await User.create(playerData);
+        const playerLoginResponse = await request(app)
+          .post('/api/auth/login')
+          .send({ email: playerData.email, password: playerData.password });
+        const playerToken = playerLoginResponse.body.token;
+
+        const response = await request(app)
+          .delete(`/api/users/${playerToDelete._id}`)
+          .set('Authorization', `Bearer ${playerToken}`);
+        expect(response.statusCode).toBe(403);
+      });
+    });
   });
+
+  // The misplaced DELETE describe block (lines 491-599) is removed by this diff.
+  // It will be re-inserted correctly in the next step.
 
   it('should login an existing user successfully with correct credentials', async () => {
     const userData = {

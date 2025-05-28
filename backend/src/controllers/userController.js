@@ -286,6 +286,20 @@ exports.deleteUser = async (req, res) => {
       return res.status(404).json({ message: 'User not found.' });
     }
 
+    // Prevent admin from deleting themselves
+    if (user._id.toString() === req.user._id.toString()) {
+      return res
+        .status(403)
+        .json({ message: 'Admins cannot delete their own account.' });
+    }
+
+    // Prevent admin from deleting other admins
+    if (user.role === 'admin') {
+      return res
+        .status(403)
+        .json({ message: 'Admins cannot delete other admin accounts.' });
+    }
+
     if (user.isDeleted) {
       return res
         .status(200)
