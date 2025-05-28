@@ -6,6 +6,7 @@ const helmet = require('helmet');
 const morgan = require('morgan');
 const swaggerUi = require('swagger-ui-express');
 const swaggerSpec = require('./src/config/swaggerConfig');
+const cors = require('cors');
 
 const authRoutes = require('./src/routes/authRoutes');
 const userRoutes = require('./src/routes/userRoutes');
@@ -16,9 +17,13 @@ const logger = require('./src/config/logger');
 
 const app = express();
 const httpServer = http.createServer(app);
+
+
+const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:8000';
+
 const io = new Server(httpServer, {
   cors: {
-    origin: '*',
+    origin: frontendUrl,
     methods: ['GET', 'POST'],
   },
 });
@@ -44,6 +49,11 @@ const getRanks = async () => {
 io.use(socketAuthMiddleware);
 app.set('socketio', io);
 app.set('activeUsers', activeUsers);
+
+app.use(cors({ 
+  origin: frontendUrl,
+  credentials: true
+}));
 
 app.use(helmet());
 app.use(express.json());
@@ -100,8 +110,33 @@ io.on('connection', (socket) => {
     });
   } else {
     logger.warn(`Unauthenticated client connection attempt: ${socket.id}`);
-    return;
+    // Do not set up further listeners if socket is not associated with a user.
+    // The 'return' here was for the 'if (socket.user)' block, not the whole connection.
+    // We should ensure that listeners like 'request_initial_ranks' are only for authenticated users.
+    // The check `if (!socket.user)` inside the handler itself is a good safeguard.
   }
+
+  // Listen for a client's request for initial ranking data
+  socket.on('request_initial_ranks', async () => {
+    // Ensure the socket is associated with an authenticated user
+    // This check is crucial if the main 'if (socket.user)' block above didn't 'return' from the whole connection handler
+    if (!socket.user) {
+      logger.warn(`'request_initial_ranks' from unauthenticated socket: ${socket.id}`);
+      return; // Ignore requests from unauthenticated sockets
+    }
+    try {
+      logger.info(`User ${socket.user.username} (Socket: ${socket.id}) requested initial ranks.`);
+      const currentRanks = await getRanks(); // Assumes getRanks() is defined in this scope
+      socket.emit('rank_update', currentRanks); // Send ranks back to the requesting client
+    } catch (error) {
+      logger.error(`Error fetching initial ranks for ${socket.user.username} (Socket: ${socket.id}):`, {
+        error: error.message,
+        stack: error.stack
+      });
+      // Optionally, emit an error event back to the client if desired
+      // socket.emit('error_fetching_ranks', { message: 'Could not retrieve rankings.' });
+    }
+  });
 
   socket.on('banana_click', async () => {
     try {
