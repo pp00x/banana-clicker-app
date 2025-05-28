@@ -721,6 +721,130 @@ describe('Auth Endpoints Basic Validation', () => {
         expect(response.statusCode).toBe(403);
       });
     });
+    describe('PUT /api/users/:userId/unblock - Admin Unblock Player', () => {
+      let playerToUnblock;
+      let alreadyUnblockedPlayer;
+
+      beforeEach(async () => {
+        alreadyUnblockedPlayer = await User.create({
+          username: 'alreadyUnblocked',
+          email: 'unblocked@example.com',
+          password: 'password123',
+          isBlocked: false,
+        });
+      });
+
+      it('admin should successfully unblock a blocked player', async () => {
+        playerToUnblock = await User.create({
+          username: 'toUnblockPlayer',
+          email: 'tounblock@example.com',
+          password: 'password123',
+          isBlocked: true,
+        });
+
+        const response = await request(app)
+          .put(`/api/users/${playerToUnblock._id}/unblock`)
+          .set('Authorization', `Bearer ${adminToken}`);
+
+        expect(response.statusCode).toBe(200);
+        expect(response.body.message).toBe('User unblocked successfully.');
+        expect(response.body.user.isBlocked).toBe(false);
+
+        const userInDb = await User.findById(playerToUnblock._id);
+        expect(userInDb.isBlocked).toBe(false);
+
+        const loginAttempt = await request(app)
+          .post('/api/auth/login')
+          .send({ email: playerToUnblock.email, password: 'password123' });
+        expect(loginAttempt.statusCode).toBe(200);
+        expect(loginAttempt.body.token).toBeDefined();
+      });
+
+      it('admin should receive success message when attempting to unblock an already unblocked player', async () => {
+        const response = await request(app)
+          .put(`/api/users/${alreadyUnblockedPlayer._id}/unblock`)
+          .set('Authorization', `Bearer ${adminToken}`);
+
+        expect(response.statusCode).toBe(200);
+        expect(response.body.message).toBe('User is already unblocked.');
+        expect(response.body.user.isBlocked).toBe(false);
+      });
+
+      it('admin should get 404 when attempting to unblock a non-existent userId', async () => {
+        const nonExistentId = new mongoose.Types.ObjectId();
+        const response = await request(app)
+          .put(`/api/users/${nonExistentId}/unblock`)
+          .set('Authorization', `Bearer ${adminToken}`);
+        expect(response.statusCode).toBe(404);
+        expect(response.body.message).toBe(
+          'User not found or has been deleted.'
+        );
+      });
+
+      it('admin should get 404 when attempting to unblock a soft-deleted user', async () => {
+        const softDeletedUser = await User.create({
+          username: 'softDelUnblockTarget',
+          email: 'softdelunblock@example.com',
+          password: 'password123',
+          isDeleted: true,
+        });
+        const response = await request(app)
+          .put(`/api/users/${softDeletedUser._id}/unblock`)
+          .set('Authorization', `Bearer ${adminToken}`);
+        expect(response.statusCode).toBe(404);
+        expect(response.body.message).toBe(
+          'User not found or has been deleted.'
+        );
+      });
+
+      it('admin should get 400 for an invalid userId format when attempting to unblock', async () => {
+        const response = await request(app)
+          .put('/api/users/invalidObjectIdFormat/unblock')
+          .set('Authorization', `Bearer ${adminToken}`);
+        expect(response.statusCode).toBe(400);
+        expect(response.body.message).toBe('Invalid user ID format.');
+      });
+
+      it('non-admin user should fail to unblock a player (403 Forbidden)', async () => {
+        const playerToTarget = await User.create({
+          username: 'targetForUnblockByPlayer',
+          email: 'targetunblockplayer@example.com',
+          password: 'password123',
+          isBlocked: true,
+        });
+        const nonAdminPlayerData = {
+          username: 'playerUnblockAttempt',
+          email: 'playerunblockattempt@example.com',
+          password: 'password123',
+        };
+        await User.create(nonAdminPlayerData);
+        const playerLoginResponse = await request(app)
+          .post('/api/auth/login')
+          .send({
+            email: nonAdminPlayerData.email,
+            password: nonAdminPlayerData.password,
+          });
+        const playerToken = playerLoginResponse.body.token;
+
+        const response = await request(app)
+          .put(`/api/users/${playerToTarget._id}/unblock`)
+          .set('Authorization', `Bearer ${playerToken}`);
+        expect(response.statusCode).toBe(403);
+      });
+
+      it('should fail to unblock a player without a token (401 Unauthorized)', async () => {
+        const playerToTarget = await User.create({
+          username: 'targetForUnblockNoToken',
+          email: 'targetunblocknotoken@example.com',
+          password: 'password123',
+          isBlocked: true,
+        });
+        const response = await request(app).put(
+          `/api/users/${playerToTarget._id}/unblock`
+        );
+        expect(response.statusCode).toBe(401);
+      });
+    });
   });
 
   it('should login an existing user successfully with correct credentials', async () => {
