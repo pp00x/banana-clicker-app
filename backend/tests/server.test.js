@@ -102,4 +102,82 @@ describe('Auth Endpoints Basic Validation', () => {
     expect(response.statusCode).toBe(400);
     expect(response.body.message).toBe('Please provide email and password.');
   });
+
+  it('should login an existing user successfully with correct credentials', async () => {
+    const userData = {
+      username: 'loginuser',
+      email: 'login@example.com',
+      password: 'password123',
+      displayName: 'Login User',
+    };
+    await User.create(userData);
+
+    const response = await request(app).post('/api/auth/login').send({
+      email: 'login@example.com',
+      password: 'password123',
+    });
+    expect(response.statusCode).toBe(200);
+    expect(response.body.message).toBe('Login successful!');
+    expect(response.body.token).toBeDefined();
+    expect(response.body.user.email).toBe('login@example.com');
+  });
+
+  it('should fail to login with incorrect password', async () => {
+    const userData = {
+      username: 'loginuserwp',
+      email: 'loginwp@example.com',
+      password: 'password123',
+    };
+    await User.create(userData);
+
+    const response = await request(app).post('/api/auth/login').send({
+      email: 'loginwp@example.com',
+      password: 'wrongpassword',
+    });
+    expect(response.statusCode).toBe(401);
+    expect(response.body.message).toBe('Invalid credentials.');
+  });
+
+  it('should fail to login with non-existent email', async () => {
+    const response = await request(app).post('/api/auth/login').send({
+      email: 'nonexistent@example.com',
+      password: 'password123',
+    });
+    expect(response.statusCode).toBe(401);
+    expect(response.body.message).toBe('Invalid credentials.');
+  });
+
+  it('should fail to login if user account is blocked', async () => {
+    await User.create({
+      username: 'blockeduser',
+      email: 'blocked@example.com',
+      password: 'password123',
+      isBlocked: true,
+    });
+
+    const response = await request(app).post('/api/auth/login').send({
+      email: 'blocked@example.com',
+      password: 'password123',
+    });
+    expect(response.statusCode).toBe(403);
+    expect(response.body.message).toBe(
+      'Your account is blocked. Please contact support.'
+    );
+  });
+
+  it('should fail to login if user account is soft-deleted', async () => {
+    await User.create({
+      username: 'deleteduser',
+      email: 'deleted@example.com',
+      password: 'password123',
+      isDeleted: true,
+    });
+
+    const response = await request(app).post('/api/auth/login').send({
+      email: 'deleted@example.com',
+      password: 'password123',
+    });
+    expect(response.statusCode).toBe(401);
+    expect(response.body.message).toBe('Invalid credentials.');
+  });
 });
