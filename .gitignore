@@ -1,0 +1,53 @@
+# Project Planning & Progress Tracking
+project-plan.md
+progress.md
+
+# Environment variables
+.env
+*.env
+.env.*
+!/.env.example
+!/.env.template
+
+# Log files
+*.log
+logs/
+*.log.*
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# IDE & Editor specific
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Build output (if any at root, more specific ones will be in backend/.gitignore)
+/build
+/dist
+/out
+
+# Coverage reports
+coverage/
+lcov.info
+*.lcov
+
+# PM2
+pm2.log
+ecosystem.config.js

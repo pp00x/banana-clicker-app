@@ -1,0 +1,152 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --color-primary: 45 100% 50%;
+    --color-primary-light: 45 100% 65%;
+    --color-primary-dark: 45 100% 40%;
+    
+    --color-secondary: 271 76% 53%;
+    --color-secondary-light: 271 76% 63%;
+    --color-secondary-dark: 271 76% 43%;
+    
+    --color-accent: 31 100% 60%;
+    --color-accent-light: 31 100% 70%;
+    --color-accent-dark: 31 100% 50%;
+    
+    --color-success: 142 76% 45%;
+    --color-warning: 37 100% 50%;
+    --color-error: 0 100% 60%;
+    
+    --color-background: 45 33% 97%;
+    --color-foreground: 45 5% 15%;
+  }
+  
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    overflow-x: hidden;
+  }
+  
+  * {
+    @apply transition-colors duration-200;
+  }
+  
+  @keyframes float {
+    0% { transform: translateY(0px) rotate(0deg); }
+    50% { transform: translateY(-15px) rotate(5deg); }
+    100% { transform: translateY(0px) rotate(0deg); }
+  }
+  
+  @keyframes wiggle {
+    0%, 100% { transform: rotate(-3deg); }
+    50% { transform: rotate(3deg); }
+  }
+  
+  @keyframes pulse-shadow {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(234, 179, 8, 0.4); }
+    50% { box-shadow: 0 0 0 15px rgba(234, 179, 8, 0); }
+  }
+  
+  @keyframes banana-rain {
+    0% { 
+      transform: translateY(-100vh) translateX(0) rotate(0deg); 
+      opacity: 1; 
+    }
+    100% { 
+      transform: translateY(100vh) translateX(calc(50px * var(--random-x))) rotate(calc(360deg * var(--random-rotate))); 
+      opacity: 0; 
+    }
+  }
+  
+  .text-gradient {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-yellow-500 to-yellow-300;
+  }
+  
+  .banana-cursor {
+    cursor: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='40' height='48' viewport='0 0 100 100' style='fill:black;font-size:24px;'><text y='50%'>🍌</text></svg>") 16 0, auto;
+  }
+}
+
+@layer components {
+  .btn {
+    @apply inline-flex items-center justify-center rounded-lg px-6 py-3 font-medium shadow-md transition-all duration-300 transform;
+  }
+  
+  .btn-primary {
+    @apply bg-primary text-white hover:bg-primary-dark hover:-translate-y-1 hover:shadow-lg active:translate-y-0 active:shadow;
+  }
+  
+  .btn-secondary {
+    @apply bg-secondary text-white hover:bg-secondary-dark hover:-translate-y-1 hover:shadow-lg active:translate-y-0 active:shadow;
+  }
+  
+  .btn-accent {
+    @apply bg-accent text-white hover:bg-accent-dark hover:-translate-y-1 hover:shadow-lg active:translate-y-0 active:shadow;
+  }
+  
+  .card {
+    @apply bg-white rounded-2xl shadow-xl p-6 transition-all duration-300 hover:shadow-2xl;
+  }
+  
+  .input-field {
+    @apply w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition duration-300;
+  }
+  
+  .nav-link {
+    @apply relative px-4 py-2 text-lg font-medium transition-all duration-300 after:absolute after:bottom-0 after:left-0 after:h-0.5 after:w-0 after:bg-primary after:transition-all after:duration-300 hover:text-primary hover:after:w-full;
+  }
+  
+  .nav-link-active {
+    @apply text-primary after:w-full;
+  }
+  
+  .banana-click-container {
+    @apply relative cursor-pointer transition-transform duration-300 hover:scale-105;
+  }
+  
+  .banana-glow {
+    @apply absolute -inset-1 rounded-full bg-yellow-400 opacity-0 blur transition-opacity duration-300 group-hover:opacity-50;
+  }
+  
+  .banana-shadow {
+    @apply absolute bottom-0 left-1/2 -translate-x-1/2 w-24 h-6 bg-black/20 rounded-full blur-md transition-all duration-300 group-hover:w-28;
+  }
+  
+  .banana-float {
+    animation: float 3s ease-in-out infinite;
+  }
+  
+  .banana-click {
+    animation: wiggle 0.5s ease-in-out;
+  }
+  
+  .banana-pulse {
+    animation: pulse-shadow 2s infinite;
+  }
+  
+  .banana-rain {
+    animation: banana-rain calc(3s + (var(--random-duration) * 2s)) linear forwards;
+    --random-x: calc(var(--x) * 2 - 1);
+    --random-rotate: var(--rotate);
+    --random-duration: var(--duration);
+  }
+}
+/* Added to make elements like the clickable banana non-selectable and non-draggable */
+.non-selectable {
+  user-select: none; /* Standard syntax */
+  -webkit-user-select: none; /* Safari */
+  -moz-user-select: none;    /* Firefox */
+  -ms-user-select: none;     /* Internet Explorer/Edge */
+  
+  -webkit-user-drag: none; /* Prevents dragging in WebKit/Blink browsers (Chrome, Safari, Opera) */
+  -khtml-user-drag: none;  /* Older Konqueror browsers */
+  -moz-user-drag: none;    /* Firefox (might need -moz-window-dragging for some elements) */
+  -o-user-drag: none;      /* Older Opera versions */
+  user-drag: none;         /* Standard property for preventing dragging */
+}
