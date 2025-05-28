@@ -9,6 +9,7 @@ const User = require('./src/models/User');
 const errorHandlerMiddleware = require('./src/middleware/errorHandlerMiddleware');
 const logger = require('./src/config/logger');
 const morgan = require('morgan');
+const helmet = require('helmet');
 
 // Helper function to get current ranks
 const getRanks = async () => {
@@ -49,6 +50,7 @@ app.set('activeUsers', activeUsers);
 
 connectDB();
 
+app.use(helmet()); // Use helmet for security headers
 app.use(express.json());
 
 // HTTP Request Logging with Morgan, piped to Winston
