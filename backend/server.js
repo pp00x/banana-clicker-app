@@ -6,6 +6,7 @@ const authRoutes = require('./src/routes/authRoutes');
 const userRoutes = require('./src/routes/userRoutes');
 const socketAuthMiddleware = require('./src/middleware/socketAuthMiddleware');
 const User = require('./src/models/User');
+const errorHandlerMiddleware = require('./src/middleware/errorHandlerMiddleware');
 
 // Helper function to get current ranks
 const getRanks = async () => {
@@ -53,6 +54,9 @@ app.use('/api/users', userRoutes);
 app.get('/', (req, res) => {
   res.send('Banana Clicker Backend is Alive!');
 });
+
+// Global Error Handler
+app.use(errorHandlerMiddleware);
 
 io.on('connection', (socket) => {
   if (socket.user) {
