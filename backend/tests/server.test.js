@@ -15,7 +15,11 @@ afterEach(async () => {
 afterAll(async () => {
   await mongoose.connection.close();
   if (httpServer && httpServer.listening) {
-    //
+    httpServer.close((err) => {
+      if (err) {
+        console.error('Error closing server in afterAll:', err);
+      }
+    });
   }
 });
 
@@ -244,7 +248,7 @@ describe('Auth Endpoints Basic Validation', () => {
           (u) => u.username === 'superadmin_test'
         );
         expect(foundAdmin).toBeDefined();
-        expect(response.body.users.length).toBe(2); // player3 + superadmin_test
+        expect(response.body.users.length).toBe(2);
       });
 
       it('non-admin user should fail to retrieve the list of users (403 Forbidden)', async () => {
@@ -491,7 +495,6 @@ describe('Auth Endpoints Basic Validation', () => {
       let anotherAdminUser;
 
       beforeEach(async () => {
-        // Admin user (superadmin_test) is created by the outer beforeEach of 'User Management'
         playerToDelete = await User.create({
           username: 'deleteplayer',
           email: 'delete@example.com',
@@ -516,7 +519,6 @@ describe('Auth Endpoints Basic Validation', () => {
         const userInDb = await User.findById(playerToDelete._id);
         expect(userInDb.isDeleted).toBe(true);
 
-        // Verify GET /api/users/:userId returns 404 for this user
         const getResponse = await request(app)
           .get(`/api/users/${playerToDelete._id}`)
           .set('Authorization', `Bearer ${adminToken}`);
@@ -557,7 +559,7 @@ describe('Auth Endpoints Basic Validation', () => {
       it('admin should not be able to soft-delete themselves', async () => {
         const adminUserFromDB = await User.findOne({
           email: 'admin_test@example.com',
-        }); // This is the admin from outer beforeEach
+        });
         expect(adminUserFromDB).not.toBeNull();
 
         const response = await request(app)
@@ -599,10 +601,127 @@ describe('Auth Endpoints Basic Validation', () => {
         expect(response.statusCode).toBe(403);
       });
     });
-  });
 
-  // The misplaced DELETE describe block (lines 491-599) is removed by this diff.
-  // It will be re-inserted correctly in the next step.
+    describe('PUT /api/users/:userId/block - Admin Block Player', () => {
+      let playerToBlock;
+      let anotherAdminToTestBlock;
+
+      beforeEach(async () => {
+        playerToBlock = await User.create({
+          username: 'blockplayer',
+          email: 'block@example.com',
+          password: 'password123',
+        });
+        anotherAdminToTestBlock = await User.create({
+          username: 'anotheradminblocktest',
+          email: 'anotheradminblock@example.com',
+          password: 'password123',
+          role: 'admin',
+        });
+      });
+
+      it('admin should successfully block an active player', async () => {
+        const response = await request(app)
+          .put(`/api/users/${playerToBlock._id}/block`)
+          .set('Authorization', `Bearer ${adminToken}`);
+
+        expect(response.statusCode).toBe(200);
+        expect(response.body.message).toBe('User blocked successfully.');
+        expect(response.body.user.isBlocked).toBe(true);
+
+        const userInDb = await User.findById(playerToBlock._id);
+        expect(userInDb.isBlocked).toBe(true);
+
+        const loginAttempt = await request(app)
+          .post('/api/auth/login')
+          .send({ email: playerToBlock.email, password: 'password123' });
+        expect(loginAttempt.statusCode).toBe(403);
+        expect(loginAttempt.body.message).toBe(
+          'Your account is blocked. Please contact support.'
+        );
+      });
+
+      it('admin should receive success message when attempting to block an already blocked player', async () => {
+        playerToBlock.isBlocked = true;
+        await playerToBlock.save();
+
+        const response = await request(app)
+          .put(`/api/users/${playerToBlock._id}/block`)
+          .set('Authorization', `Bearer ${adminToken}`);
+
+        expect(response.statusCode).toBe(200);
+        expect(response.body.message).toBe('User is already blocked.');
+      });
+
+      it('admin should get 404 when attempting to block a non-existent userId', async () => {
+        const nonExistentId = new mongoose.Types.ObjectId();
+        const response = await request(app)
+          .put(`/api/users/${nonExistentId}/block`)
+          .set('Authorization', `Bearer ${adminToken}`);
+        expect(response.statusCode).toBe(404);
+        expect(response.body.message).toBe(
+          'User not found or has been deleted.'
+        );
+      });
+
+      it('admin should get 404 when attempting to block a soft-deleted user', async () => {
+        playerToBlock.isDeleted = true;
+        await playerToBlock.save();
+        const response = await request(app)
+          .put(`/api/users/${playerToBlock._id}/block`)
+          .set('Authorization', `Bearer ${adminToken}`);
+        expect(response.statusCode).toBe(404);
+      });
+
+      it('admin should get 400 for an invalid userId format when attempting to block', async () => {
+        const response = await request(app)
+          .put('/api/users/invalidObjectIdFormat/block')
+          .set('Authorization', `Bearer ${adminToken}`);
+        expect(response.statusCode).toBe(400);
+        expect(response.body.message).toBe('Invalid user ID format.');
+      });
+
+      it('admin should not be able to block themselves (if they are an admin)', async () => {
+        const adminUserFromDB = await User.findOne({
+          email: 'admin_test@example.com',
+        });
+        const response = await request(app)
+          .put(`/api/users/${adminUserFromDB._id}/block`)
+          .set('Authorization', `Bearer ${adminToken}`);
+        expect(response.statusCode).toBe(403);
+        expect(response.body.message).toBe('Admins cannot be blocked.');
+      });
+
+      it('admin should not be able to block another admin', async () => {
+        const response = await request(app)
+          .put(`/api/users/${anotherAdminToTestBlock._id}/block`)
+          .set('Authorization', `Bearer ${adminToken}`);
+        expect(response.statusCode).toBe(403);
+        expect(response.body.message).toBe('Admins cannot be blocked.');
+      });
+
+      it('non-admin user should fail to block a player (403 Forbidden)', async () => {
+        const nonAdminPlayerData = {
+          username: 'playerblockattempt',
+          email: 'playerblockattempt@example.com',
+          password: 'password123',
+        };
+        await User.create(nonAdminPlayerData);
+        const playerLoginResponse = await request(app)
+          .post('/api/auth/login')
+          .send({
+            email: nonAdminPlayerData.email,
+            password: nonAdminPlayerData.password,
+          });
+        const playerToken = playerLoginResponse.body.token;
+
+        const response = await request(app)
+          .put(`/api/users/${playerToBlock._id}/block`)
+          .set('Authorization', `Bearer ${playerToken}`);
+        expect(response.statusCode).toBe(403);
+      });
+    });
+  });
 
   it('should login an existing user successfully with correct credentials', async () => {
     const userData = {
