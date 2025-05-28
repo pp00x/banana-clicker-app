@@ -103,6 +103,89 @@ describe('Auth Endpoints Basic Validation', () => {
     expect(response.body.message).toBe('Please provide email and password.');
   });
 
+  describe('User Management API Endpoints (Admin Only)', () => {
+    let adminToken;
+
+    beforeEach(async () => {
+      await User.deleteMany({});
+
+      const adminData = {
+        username: 'superadmin_test',
+        email: 'admin_test@example.com',
+        password: 'password123',
+        role: 'admin',
+      };
+      await User.create(adminData);
+
+      const loginResponse = await request(app).post('/api/auth/login').send({
+        email: adminData.email,
+        password: adminData.password,
+      });
+      if (loginResponse.body.token) {
+        adminToken = loginResponse.body.token;
+      } else {
+        throw new Error('Admin user login failed during test setup.');
+      }
+      expect(adminToken).toBeDefined();
+    });
+
+    describe('POST /api/users - Admin Create Player', () => {
+      it('admin should successfully create a new player', async () => {
+        const newPlayerData = {
+          username: 'newplayer',
+          email: 'player@example.com',
+          password: 'playerpassword',
+          displayName: 'New Player',
+        };
+        const response = await request(app)
+          .post('/api/users')
+          .set('Authorization', `Bearer ${adminToken}`)
+          .send(newPlayerData);
+
+        expect(response.statusCode).toBe(201);
+        expect(response.body.message).toBe(
+          'User created successfully by admin!'
+        );
+        expect(response.body.user.username).toBe(newPlayerData.username);
+        expect(response.body.user.email).toBe(newPlayerData.email);
+        expect(response.body.user.role).toBe('player');
+      });
+
+      it('admin should fail to create player if required fields are missing', async () => {
+        const response = await request(app)
+          .post('/api/users')
+          .set('Authorization', `Bearer ${adminToken}`)
+          .send({ email: 'test@example.com' });
+        expect(response.statusCode).toBe(400);
+        expect(response.body.message).toBe(
+          'Please provide username, email, and password.'
+        );
+      });
+
+      it('admin should fail to create player if email is already in use', async () => {
+        await User.create({
+          username: 'p1',
+          email: 'takenemail@example.com',
+          password: 'p',
+        });
+
+        const newPlayerData = {
+          username: 'newplayer2',
+          email: 'takenemail@example.com',
+          password: 'playerpassword',
+        };
+        const response = await request(app)
+          .post('/api/users')
+          .set('Authorization', `Bearer ${adminToken}`)
+          .send(newPlayerData);
+        expect(response.statusCode).toBe(400);
+        expect(response.body.message).toMatch(
+          /Email already in use|User creation failed/i
+        );
+      });
+    });
+  });
+
   it('should login an existing user successfully with correct credentials', async () => {
     const userData = {
       username: 'loginuser',
