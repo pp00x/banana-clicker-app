@@ -2,7 +2,7 @@
 
 ## 1. Project Objective
 
-This project implements a real-time dashboard application as per the assignment requirements. It features distinct roles for Admins and Players, with functionalities centered around player management, activity monitoring, and a real-time game interaction where players click a "Banana" button to increment a score and track their rank.
+This project implements a real-time dashboard application. It features distinct roles for Admins and Players, with functionalities centered around player management, activity monitoring, and a real-time game interaction where players click a "Banana" button to increment a score and track their rank.
 
 The application utilizes React for the frontend, Node.js with Express for the backend, MongoDB for data storage, and Socket.io for real-time bi-directional communication.
 
