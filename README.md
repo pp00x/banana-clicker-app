@@ -1,4 +1,4 @@
-# Banana Clicker - Full-Stack Real-Time Application (Technical Assignment)
+# Banana Clicker - Full-Stack Real-Time Application
 
 ## 1. Project Objective
 
